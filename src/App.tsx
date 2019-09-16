@@ -12,7 +12,13 @@ interface IState {
 
 class App extends Component<{}, IState> {
 
+    public static getDerivedStateFromProps(props: {}, state: IState) {
+        console.log("getDerivedStateFromProps", props, state);
+        return null;
+    }
+
     private timer: number = 0;
+    private renderCount = 0;
 
     constructor(props: {}) {
         super(props);
@@ -24,18 +30,30 @@ class App extends Component<{}, IState> {
         };
     }
 
-    private handleTimerTick = () => {
-        this.setState({
-            confirmMessage: `Please hit the confirm button ${this.state.countDown} secs to go`,
-            countDown: this.state.countDown - 1
-        })
-    };
+    private handleTimerTick() {
+        this.setState(
+            {
+                confirmMessage: `Please hit the confirm button ${this.state.countDown} secs to go`,
+                countDown: this.state.countDown - 1
+            },
+            () => {
+                if (this.state.countDown <= 0) {
+                    clearInterval(this.timer);
+                    this.setState({
+                        confirmMessage: "Too late to confirm!",
+                        confirmVisible: false
+                    });
+                }
+            }
+        );
+    }
 
     private handleCancelConfirmClick = () => {
         this.setState({
             confirmMessage: "Take a break, I'm sure you will later...",
-            confirmOpen: false
+            confirmOpen: false,
         });
+        clearInterval(this.timer);
     };
 
     private handleOkConfirmClick = () => {
@@ -43,15 +61,42 @@ class App extends Component<{}, IState> {
             confirmMessage: "Cool, carry on reading!",
             confirmOpen: false
         });
+        clearInterval(this.timer);
     };
 
     private handleConfirmClick = () => {
         this.setState({confirmOpen: true});
+        clearInterval(this.timer);
     };
+
+    public getSnapshotBeforeUpdate(prevProps: {}, prevState: IState) {
+        this.renderCount += 1;
+        console.log("getSnapshotBeforeUpdate", prevProps, prevState,
+            {
+                renderCount: this.renderCount
+            });
+        return this.renderCount;
+    }
+
+    public componentDidUpdate(prevProps: {}, prevState: IState, snapshot: number) {
+        console.log("componentDidUpdate", prevProps, prevState,
+            snapshot, {
+                renderCount: this.renderCount
+            });
+    }
 
     componentDidMount() {
         this.timer = window.setInterval(() => this.handleTimerTick(),
-            1000);
+            5000);
+    }
+
+    componentWillUnmount() {
+        clearInterval(this.timer);
+    }
+
+    public shouldComponentUpdate(nextProps: {}, nextState: IState) {
+        console.log("shouldComponentUpdate", nextProps, nextState);
+        return true;
     }
 
     render() {
@@ -72,7 +117,9 @@ class App extends Component<{}, IState> {
                     </a>
                 </header>
                 <p>{this.state.confirmMessage}</p>
-                <button onClick={this.handleConfirmClick}>Confirm</button>
+                {this.state.confirmVisible && (
+                    <button onClick={this.handleConfirmClick}>Confirm</button>
+                )}
                 <Confirm
                     open={this.state.confirmOpen}
                     title="React and TypeScript"
